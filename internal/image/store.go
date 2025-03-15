@@ -39,6 +39,29 @@ func (s *SQLiteStore) CreateTable() error {
 	return nil
 }
 
+func (s *SQLiteStore) ListImages() ([]Image, error) {
+	rows, err := s.DB.Query("SELECT id, data FROM images")
+	if err != nil {
+		return nil, fmt.Errorf("画像の一覧取得に失敗: %w", err)
+	}
+	defer rows.Close()
+
+	var images []Image
+	for rows.Next() {
+		var img Image
+		if err := rows.Scan(&img.ID, &img.Data); err != nil {
+			return nil, fmt.Errorf("画像データの読み取りに失敗: %w", err)
+		}
+		images = append(images, img)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("画像の一覧取得中にエラーが発生: %w", err)
+	}
+
+	return images, nil
+}
+
 func (s *SQLiteStore) SaveImage(data []byte) error {
 	_, err := s.DB.Exec("INSERT INTO images (data) VALUES (?)", data)
 	if err != nil {

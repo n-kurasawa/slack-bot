@@ -12,6 +12,7 @@ import (
 func main() {
 	dbPath := flag.String("db", "images.db", "データベースファイルのパス")
 	imagePath := flag.String("image", "", "画像ファイルのパス")
+	list := flag.Bool("list", false, "画像の一覧を表示")
 	flag.Parse()
 
 	store, err := image.NewStore(*dbPath)
@@ -24,8 +25,22 @@ func main() {
 		log.Fatal(err)
 	}
 
+	if *list {
+		images, err := store.ListImages()
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Printf("登録されている画像の数: %d\n", len(images))
+		for _, img := range images {
+			fmt.Printf("ID: %d, サイズ: %d bytes\n", img.ID, len(img.Data))
+		}
+		return
+	}
+
 	if *imagePath == "" {
-		fmt.Println("画像ファイルのパスを指定してください")
+		fmt.Println("使用方法:")
+		fmt.Println("  画像の登録: -image <画像ファイルのパス>")
+		fmt.Println("  画像の一覧: -list")
 		os.Exit(1)
 	}
 
