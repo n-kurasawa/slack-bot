@@ -8,8 +8,13 @@ import (
 	"net/http"
 
 	"github.com/n-kurasawa/slack-bot/internal/image"
-	"github.com/slack-go/slack"
+	slackapi "github.com/slack-go/slack"
 )
+
+type SlackClient interface {
+	PostMessage(channelID string, options ...slackapi.MsgOption) (string, string, error)
+	UploadFileV2(params slackapi.UploadFileV2Parameters) (*slackapi.FileSummary, error)
+}
 
 type ImageStore interface {
 	GetImage(db *sql.DB) (*image.Image, error)
@@ -28,12 +33,12 @@ type Event struct {
 }
 
 type Handler struct {
-	client   *slack.Client
+	client   SlackClient
 	db       *sql.DB
 	imgStore ImageStore
 }
 
-func NewHandler(client *slack.Client, database *sql.DB, store ImageStore) *Handler {
+func NewHandler(client SlackClient, database *sql.DB, store ImageStore) *Handler {
 	return &Handler{
 		client:   client,
 		db:       database,
@@ -77,7 +82,7 @@ func (h *Handler) handleMessage(event *Event) error {
 	case "hello":
 		_, _, err := h.client.PostMessage(
 			event.Event.Channel,
-			slack.MsgOptionText("world", false),
+			slackapi.MsgOptionText("world", false),
 		)
 		if err != nil {
 			return fmt.Errorf("メッセージの送信に失敗: %w", err)
@@ -89,7 +94,7 @@ func (h *Handler) handleMessage(event *Event) error {
 			return fmt.Errorf("画像の取得に失敗: %w", err)
 		}
 
-		_, err = h.client.UploadFileV2(slack.UploadFileV2Parameters{
+		_, err = h.client.UploadFileV2(slackapi.UploadFileV2Parameters{
 			Channel: event.Event.Channel,
 			Content: string(img.Data),
 		})
