@@ -8,9 +8,10 @@ import (
 )
 
 type Config struct {
-	SlackBotToken string
-	DBPath        string
-	Port          string
+	SlackBotToken      string
+	SlackSigningSecret string
+	DBPath             string
+	Port               string
 }
 
 func Load() (*Config, error) {
@@ -23,10 +24,16 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("SLACK_BOT_TOKEN が設定されていません")
 	}
 
+	signingSecret := os.Getenv("SLACK_SIGNING_SECRET")
+	if signingSecret == "" {
+		return nil, fmt.Errorf("SLACK_SIGNING_SECRET が設定されていません")
+	}
+
 	return &Config{
-		SlackBotToken: token,
-		DBPath:        os.Getenv("DB_PATH"),
-		Port:          getEnvWithDefault("PORT", "3000"),
+		SlackBotToken:      token,
+		SlackSigningSecret: signingSecret,
+		DBPath:             os.Getenv("DB_PATH"),
+		Port:               getEnvWithDefault("PORT", "3000"),
 	}, nil
 }
 

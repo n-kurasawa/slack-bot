@@ -29,7 +29,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	handler := slack.NewHandler(client, store.DB, store)
+	handler := slack.NewHandler(client, store.DB, store, cfg.SlackSigningSecret)
 
 	http.Handle("/slack/events", handler)
 	log.Printf("Starting server on %s", cfg.Port)
