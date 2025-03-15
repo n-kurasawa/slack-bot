@@ -9,6 +9,8 @@ import (
 
 	"github.com/joho/godotenv"
 	"github.com/slack-go/slack"
+
+	"github.com/n-kurasawa/slack-bot/internal/db"
 )
 
 type SlackEvent struct {
@@ -34,6 +36,12 @@ func main() {
 		log.Fatal("SLACK_BOT_TOKEN を設定してください")
 	}
 
+	database, err := db.OpenDB("images.db")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer database.Close()
+
 	client := slack.New(token)
 
 	http.HandleFunc("/slack/events", func(w http.ResponseWriter, r *http.Request) {
@@ -53,10 +61,25 @@ func main() {
 
 		// メッセージイベントの処理
 		if event.Type == "event_callback" && event.Event.Type == "message" {
-			if event.Event.Text == "hello" {
+			switch event.Event.Text {
+			case "hello":
 				_, _, err := client.PostMessage(event.Event.Channel, slack.MsgOptionText("world", false))
 				if err != nil {
 					log.Printf("メッセージの送信に失敗しました: %v\n", err)
+				}
+			case "image":
+				img, err := db.GetImage(database)
+				if err != nil {
+					log.Printf("画像の取得に失敗しました: %v\n", err)
+					return
+				}
+
+				_, err = client.UploadFile(slack.FileUploadParameters{
+					Channels: []string{event.Event.Channel},
+					Content:  string(img.Data),
+				})
+				if err != nil {
+					log.Printf("画像の送信に失敗しました: %v\n", err)
 				}
 			}
 		}
