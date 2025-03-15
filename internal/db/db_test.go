@@ -11,14 +11,14 @@ func TestDatabase(t *testing.T) {
 	defer os.Remove(tmpDB)
 
 	// データベース接続
-	db, err := OpenDB(tmpDB)
+	store, err := NewStore(tmpDB)
 	if err != nil {
 		t.Fatalf("データベースの接続に失敗: %v", err)
 	}
-	defer db.Close()
+	defer store.Close()
 
 	// テーブル作成
-	err = CreateTable(db)
+	err = store.CreateTable()
 	if err != nil {
 		t.Fatalf("テーブルの作成に失敗: %v", err)
 	}
@@ -27,13 +27,13 @@ func TestDatabase(t *testing.T) {
 	testData := []byte("test image data")
 
 	// 画像の保存
-	err = SaveImage(db, testData)
+	err = store.SaveImage(testData)
 	if err != nil {
 		t.Fatalf("画像の保存に失敗: %v", err)
 	}
 
 	// 画像の取得
-	img, err := GetImage(db)
+	img, err := store.GetImage(store.DB)
 	if err != nil {
 		t.Fatalf("画像の取得に失敗: %v", err)
 	}

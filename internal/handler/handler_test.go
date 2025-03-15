@@ -1,4 +1,4 @@
-package main
+package handler
 
 import (
 	"bytes"
@@ -24,8 +24,8 @@ func TestURLVerification(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/slack/events", bytes.NewBuffer(body))
 	w := httptest.NewRecorder()
 
-	handler := createHandler(nil, nil) // テスト用にクライアントとDBをnilに設定
-	handler.ServeHTTP(w, req)
+	h := New(nil, nil, nil) // テスト用にクライアントとDBをnilに設定
+	h.ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
 		t.Errorf("期待したステータスコード %d, 実際のステータスコード %d", http.StatusOK, w.Code)
@@ -40,8 +40,8 @@ func TestInvalidJSON(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/slack/events", bytes.NewBuffer([]byte("invalid json")))
 	w := httptest.NewRecorder()
 
-	handler := createHandler(nil, nil)
-	handler.ServeHTTP(w, req)
+	h := New(nil, nil, nil)
+	h.ServeHTTP(w, req)
 
 	if w.Code != http.StatusBadRequest {
 		t.Errorf("期待したステータスコード %d, 実際のステータスコード %d", http.StatusBadRequest, w.Code)

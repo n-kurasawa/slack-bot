@@ -16,13 +16,13 @@ func main() {
 	)
 	flag.Parse()
 
-	database, err := db.OpenDB(*dbPath)
+	store, err := db.NewStore(*dbPath)
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer database.Close()
+	defer store.Close()
 
-	if err := db.CreateTable(database); err != nil {
+	if err := store.CreateTable(); err != nil {
 		log.Fatal(err)
 	}
 
@@ -32,7 +32,7 @@ func main() {
 			log.Fatal(err)
 		}
 
-		if err := db.SaveImage(database, data); err != nil {
+		if err := store.SaveImage(data); err != nil {
 			log.Fatal(err)
 		}
 		fmt.Println("画像を登録しました")
