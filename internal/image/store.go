@@ -7,12 +7,6 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-type Store interface {
-	CreateTable() error
-	SaveImage(data []byte) error
-	GetImage(db *sql.DB) (*Image, error)
-}
-
 type Image struct {
 	ID   int
 	Data []byte

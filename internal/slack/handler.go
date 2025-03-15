@@ -7,10 +7,13 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/slack-go/slack"
-
 	"github.com/n-kurasawa/slack-bot/internal/image"
+	"github.com/slack-go/slack"
 )
+
+type ImageStore interface {
+	GetImage(db *sql.DB) (*image.Image, error)
+}
 
 type Event struct {
 	Token     string `json:"token"`
@@ -27,10 +30,10 @@ type Event struct {
 type Handler struct {
 	client   *slack.Client
 	db       *sql.DB
-	imgStore image.Store
+	imgStore ImageStore
 }
 
-func NewHandler(client *slack.Client, database *sql.DB, store image.Store) *Handler {
+func NewHandler(client *slack.Client, database *sql.DB, store ImageStore) *Handler {
 	return &Handler{
 		client:   client,
 		db:       database,
