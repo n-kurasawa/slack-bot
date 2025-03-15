@@ -74,9 +74,11 @@ func main() {
 					return
 				}
 
-				_, err = client.UploadFile(slack.FileUploadParameters{
-					Channels: []string{event.Event.Channel},
+				_, err = client.UploadFileV2(slack.UploadFileV2Parameters{
+					Channel:  event.Event.Channel,
 					Content:  string(img.Data),
+					Filename: "image.jpg",
+					FileSize: len(img.Data),
 				})
 				if err != nil {
 					log.Printf("画像の送信に失敗しました: %v\n", err)
