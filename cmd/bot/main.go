@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -25,6 +26,61 @@ type SlackEvent struct {
 	} `json:"event"`
 }
 
+type Handler struct {
+	client *slack.Client
+	db     *sql.DB
+}
+
+func createHandler(client *slack.Client, database *sql.DB) *Handler {
+	return &Handler{
+		client: client,
+		db:     database,
+	}
+}
+
+func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	var event SlackEvent
+	if err := json.NewDecoder(r.Body).Decode(&event); err != nil {
+		log.Printf("JSONのデコードに失敗しました: %v\n", err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	// URL Verification
+	if event.Type == "url_verification" {
+		w.Header().Set("Content-Type", "text/plain")
+		w.Write([]byte(event.Challenge))
+		return
+	}
+
+	// メッセージイベントの処理
+	if event.Type == "event_callback" && event.Event.Type == "message" {
+		switch event.Event.Text {
+		case "hello":
+			_, _, err := h.client.PostMessage(event.Event.Channel, slack.MsgOptionText("world", false))
+			if err != nil {
+				log.Printf("メッセージの送信に失敗しました: %v\n", err)
+			}
+		case "image":
+			img, err := db.GetImage(h.db)
+			if err != nil {
+				log.Printf("画像の取得に失敗しました: %v\n", err)
+				return
+			}
+
+			_, err = h.client.UploadFileV2(slack.UploadFileV2Parameters{
+				Channel: event.Event.Channel,
+				Content: string(img.Data),
+			})
+			if err != nil {
+				log.Printf("画像の送信に失敗しました: %v\n", err)
+			}
+		}
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
 func main() {
 	// .env ファイルの読み込み
 	if err := godotenv.Load(); err != nil {
@@ -43,51 +99,9 @@ func main() {
 	defer database.Close()
 
 	client := slack.New(token)
+	handler := createHandler(client, database)
 
-	http.HandleFunc("/slack/events", func(w http.ResponseWriter, r *http.Request) {
-		var event SlackEvent
-		if err := json.NewDecoder(r.Body).Decode(&event); err != nil {
-			log.Printf("JSONのデコードに失敗しました: %v\n", err)
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-
-		// URL Verification
-		if event.Type == "url_verification" {
-			w.Header().Set("Content-Type", "text/plain")
-			w.Write([]byte(event.Challenge))
-			return
-		}
-
-		// メッセージイベントの処理
-		if event.Type == "event_callback" && event.Event.Type == "message" {
-			switch event.Event.Text {
-			case "hello":
-				_, _, err := client.PostMessage(event.Event.Channel, slack.MsgOptionText("world", false))
-				if err != nil {
-					log.Printf("メッセージの送信に失敗しました: %v\n", err)
-				}
-			case "image":
-				img, err := db.GetImage(database)
-				if err != nil {
-					log.Printf("画像の取得に失敗しました: %v\n", err)
-					return
-				}
-
-				_, err = client.UploadFileV2(slack.UploadFileV2Parameters{
-					Channel:  event.Event.Channel,
-					Content:  string(img.Data),
-					Filename: "image.jpg",
-					FileSize: len(img.Data),
-				})
-				if err != nil {
-					log.Printf("画像の送信に失敗しました: %v\n", err)
-				}
-			}
-		}
-
-		w.WriteHeader(http.StatusOK)
-	})
+	http.Handle("/slack/events", handler)
 
 	port := "3000"
 	fmt.Printf("Slack Bot Starting on port %s...\n", port)
