@@ -9,8 +9,8 @@ import (
 )
 
 type Image struct {
-	ID   int
-	Data []byte
+	ID  int
+	URL string
 }
 
 type SQLiteStore struct {
@@ -30,7 +30,7 @@ func (s *SQLiteStore) CreateTable() error {
 	_, err := s.DB.Exec(`
 		CREATE TABLE IF NOT EXISTS images (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			data BLOB
+			url TEXT NOT NULL
 		)
 	`)
 	if err != nil {
@@ -40,7 +40,7 @@ func (s *SQLiteStore) CreateTable() error {
 }
 
 func (s *SQLiteStore) ListImages() ([]Image, error) {
-	rows, err := s.DB.Query("SELECT id, data FROM images")
+	rows, err := s.DB.Query("SELECT id, url FROM images")
 	if err != nil {
 		return nil, fmt.Errorf("画像の一覧取得に失敗: %w", err)
 	}
@@ -49,7 +49,7 @@ func (s *SQLiteStore) ListImages() ([]Image, error) {
 	var images []Image
 	for rows.Next() {
 		var img Image
-		if err := rows.Scan(&img.ID, &img.Data); err != nil {
+		if err := rows.Scan(&img.ID, &img.URL); err != nil {
 			return nil, fmt.Errorf("画像データの読み取りに失敗: %w", err)
 		}
 		images = append(images, img)
@@ -62,8 +62,8 @@ func (s *SQLiteStore) ListImages() ([]Image, error) {
 	return images, nil
 }
 
-func (s *SQLiteStore) SaveImage(data []byte) error {
-	_, err := s.DB.Exec("INSERT INTO images (data) VALUES (?)", data)
+func (s *SQLiteStore) SaveImage(url string) error {
+	_, err := s.DB.Exec("INSERT INTO images (url) VALUES (?)", url)
 	if err != nil {
 		return fmt.Errorf("画像の保存に失敗: %w", err)
 	}
@@ -86,7 +86,7 @@ func (s *SQLiteStore) GetImage() (*Image, error) {
 	offset := rand.Intn(count)
 
 	var img Image
-	err = s.DB.QueryRow("SELECT id, data FROM images LIMIT 1 OFFSET ?", offset).Scan(&img.ID, &img.Data)
+	err = s.DB.QueryRow("SELECT id, url FROM images LIMIT 1 OFFSET ?", offset).Scan(&img.ID, &img.URL)
 	if err != nil {
 		return nil, fmt.Errorf("画像の取得に失敗: %w", err)
 	}

@@ -19,15 +19,15 @@ func TestDatabase(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// 複数の画像を保存
-	testData := [][]byte{
-		[]byte("test data 1"),
-		[]byte("test data 2"),
-		[]byte("test data 3"),
+	// 複数の画像URLを保存
+	testURLs := []string{
+		"https://example.com/image1.jpg",
+		"https://example.com/image2.jpg",
+		"https://example.com/image3.jpg",
 	}
 
-	for _, data := range testData {
-		if err := store.SaveImage(data); err != nil {
+	for _, url := range testURLs {
+		if err := store.SaveImage(url); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -38,16 +38,26 @@ func TestDatabase(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// 取得した画像データが保存した画像データのいずれかと一致することを確認
+	// 取得した画像URLが保存した画像URLのいずれかと一致することを確認
 	found := false
-	for _, data := range testData {
-		if string(img.Data) == string(data) {
+	for _, url := range testURLs {
+		if img.URL == url {
 			found = true
 			break
 		}
 	}
 
 	if !found {
-		t.Error("取得した画像データが保存した画像データと一致しません")
+		t.Error("取得した画像URLが保存した画像URLと一致しません")
+	}
+
+	// 画像一覧を取得して確認
+	images, err := store.ListImages()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(images) != len(testURLs) {
+		t.Errorf("保存した画像の数が一致しません: want %d, got %d", len(testURLs), len(images))
 	}
 }

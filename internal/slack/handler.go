@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/n-kurasawa/slack-bot/internal/image"
 	slackapi "github.com/slack-go/slack"
@@ -20,6 +21,7 @@ type SlackClient interface {
 
 type ImageStore interface {
 	GetImage() (*image.Image, error)
+	SaveImage(url string) error
 }
 
 type Handler struct {
@@ -102,8 +104,8 @@ func (h *Handler) handleEvent(w http.ResponseWriter, event *slackevents.EventsAP
 }
 
 func (h *Handler) handleMessage(event *slackevents.MessageEvent) error {
-	switch event.Text {
-	case "hello":
+	switch {
+	case event.Text == "hello":
 		_, _, err := h.client.PostMessage(
 			event.Channel,
 			slackapi.MsgOptionText("world", false),
@@ -112,20 +114,32 @@ func (h *Handler) handleMessage(event *slackevents.MessageEvent) error {
 			return fmt.Errorf("メッセージの送信に失敗: %w", err)
 		}
 
-	case "image":
+	case event.Text == "image":
 		img, err := h.imgStore.GetImage()
 		if err != nil {
 			return fmt.Errorf("画像の取得に失敗: %w", err)
 		}
 
-		_, err = h.client.UploadFileV2(slackapi.UploadFileV2Parameters{
-			Channel:  event.Channel,
-			Content:  string(img.Data),
-			Filename: fmt.Sprintf("image_%d.jpg", img.ID),
-			FileSize: len(img.Data),
-		})
+		_, _, err = h.client.PostMessage(
+			event.Channel,
+			slackapi.MsgOptionText(fmt.Sprintf("画像 ID: %d\n%s", img.ID, img.URL), false),
+		)
 		if err != nil {
-			return fmt.Errorf("画像の送信に失敗: %w", err)
+			return fmt.Errorf("メッセージの送信に失敗: %w", err)
+		}
+
+	case strings.HasPrefix(event.Text, "updateImage "):
+		url := strings.TrimPrefix(event.Text, "updateImage ")
+		if err := h.imgStore.SaveImage(url); err != nil {
+			return fmt.Errorf("画像の保存に失敗: %w", err)
+		}
+
+		_, _, err := h.client.PostMessage(
+			event.Channel,
+			slackapi.MsgOptionText("画像を保存しました :white_check_mark:", false),
+		)
+		if err != nil {
+			return fmt.Errorf("メッセージの送信に失敗: %w", err)
 		}
 	}
 
