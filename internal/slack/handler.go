@@ -1,4 +1,4 @@
-package handler
+package slack
 
 import (
 	"database/sql"
@@ -8,9 +8,11 @@ import (
 	"net/http"
 
 	"github.com/slack-go/slack"
+
+	"github.com/n-kurasawa/slack-bot/internal/image"
 )
 
-type SlackEvent struct {
+type Event struct {
 	Token     string `json:"token"`
 	Challenge string `json:"challenge"`
 	Type      string `json:"type"`
@@ -22,31 +24,22 @@ type SlackEvent struct {
 	} `json:"event"`
 }
 
-type ImageStore interface {
-	GetImage(db *sql.DB) (*Image, error)
-}
-
-type Image struct {
-	ID   int64
-	Data []byte
-}
-
 type Handler struct {
-	client     *slack.Client
-	db         *sql.DB
-	imageStore ImageStore
+	client   *slack.Client
+	db       *sql.DB
+	imgStore image.Store
 }
 
-func New(client *slack.Client, database *sql.DB, store ImageStore) *Handler {
+func NewHandler(client *slack.Client, database *sql.DB, store image.Store) *Handler {
 	return &Handler{
-		client:     client,
-		db:         database,
-		imageStore: store,
+		client:   client,
+		db:       database,
+		imgStore: store,
 	}
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	var event SlackEvent
+	var event Event
 	if err := json.NewDecoder(r.Body).Decode(&event); err != nil {
 		h.handleError(w, fmt.Errorf("JSONのデコードに失敗: %w", err), http.StatusBadRequest)
 		return
@@ -60,7 +53,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func (h *Handler) handleEvent(w http.ResponseWriter, event *SlackEvent) error {
+func (h *Handler) handleEvent(w http.ResponseWriter, event *Event) error {
 	// URL Verification
 	if event.Type == "url_verification" {
 		w.Header().Set("Content-Type", "text/plain")
@@ -76,7 +69,7 @@ func (h *Handler) handleEvent(w http.ResponseWriter, event *SlackEvent) error {
 	return nil
 }
 
-func (h *Handler) handleMessage(event *SlackEvent) error {
+func (h *Handler) handleMessage(event *Event) error {
 	switch event.Event.Text {
 	case "hello":
 		_, _, err := h.client.PostMessage(
@@ -88,7 +81,7 @@ func (h *Handler) handleMessage(event *SlackEvent) error {
 		}
 
 	case "image":
-		img, err := h.imageStore.GetImage(h.db)
+		img, err := h.imgStore.GetImage(h.db)
 		if err != nil {
 			return fmt.Errorf("画像の取得に失敗: %w", err)
 		}
