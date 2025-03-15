@@ -3,6 +3,7 @@ package image
 import (
 	"database/sql"
 	"fmt"
+	"math/rand"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -47,8 +48,22 @@ func (s *SQLiteStore) SaveImage(data []byte) error {
 }
 
 func (s *SQLiteStore) GetImage(db *sql.DB) (*Image, error) {
+	// 画像の総数を取得
+	var count int
+	err := s.DB.QueryRow("SELECT COUNT(*) FROM images").Scan(&count)
+	if err != nil {
+		return nil, fmt.Errorf("画像数の取得に失敗: %w", err)
+	}
+
+	if count == 0 {
+		return nil, fmt.Errorf("画像が登録されていません")
+	}
+
+	// ランダムなオフセットを生成
+	offset := rand.Intn(count)
+
 	var img Image
-	err := s.DB.QueryRow("SELECT id, data FROM images ORDER BY id DESC LIMIT 1").Scan(&img.ID, &img.Data)
+	err = s.DB.QueryRow("SELECT id, data FROM images LIMIT 1 OFFSET ?", offset).Scan(&img.ID, &img.Data)
 	if err != nil {
 		return nil, fmt.Errorf("画像の取得に失敗: %w", err)
 	}
