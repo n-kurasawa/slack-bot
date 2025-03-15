@@ -33,7 +33,7 @@ func TestDatabase(t *testing.T) {
 	}
 
 	// 画像が取得できることを確認
-	img, err := store.GetImage(store.DB)
+	img, err := store.GetImage()
 	if err != nil {
 		t.Fatal(err)
 	}

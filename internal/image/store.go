@@ -70,7 +70,7 @@ func (s *SQLiteStore) SaveImage(data []byte) error {
 	return nil
 }
 
-func (s *SQLiteStore) GetImage(db *sql.DB) (*Image, error) {
+func (s *SQLiteStore) GetImage() (*Image, error) {
 	// 画像の総数を取得
 	var count int
 	err := s.DB.QueryRow("SELECT COUNT(*) FROM images").Scan(&count)

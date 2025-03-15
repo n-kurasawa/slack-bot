@@ -17,7 +17,7 @@ type SlackClient interface {
 }
 
 type ImageStore interface {
-	GetImage(db *sql.DB) (*image.Image, error)
+	GetImage() (*image.Image, error)
 }
 
 type Event struct {
@@ -89,7 +89,7 @@ func (h *Handler) handleMessage(event *Event) error {
 		}
 
 	case "image":
-		img, err := h.imgStore.GetImage(h.db)
+		img, err := h.imgStore.GetImage()
 		if err != nil {
 			return fmt.Errorf("画像の取得に失敗: %w", err)
 		}
