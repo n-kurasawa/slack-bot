@@ -95,8 +95,10 @@ func (h *Handler) handleMessage(event *Event) error {
 		}
 
 		_, err = h.client.UploadFileV2(slackapi.UploadFileV2Parameters{
-			Channel: event.Event.Channel,
-			Content: string(img.Data),
+			Channel:  event.Event.Channel,
+			Content:  string(img.Data),
+			Filename: fmt.Sprintf("image_%d.jpg", img.ID),
+			FileSize: len(img.Data),
 		})
 		if err != nil {
 			return fmt.Errorf("画像の送信に失敗: %w", err)
