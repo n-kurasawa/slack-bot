@@ -120,9 +120,14 @@ func (h *Handler) handleMessage(event *slackevents.MessageEvent) error {
 			return fmt.Errorf("画像の取得に失敗: %w", err)
 		}
 
+		attachment := slackapi.Attachment{
+			Title:    fmt.Sprintf("画像 ID: %d", img.ID),
+			ImageURL: img.URL,
+		}
+
 		_, _, err = h.client.PostMessage(
 			event.Channel,
-			slackapi.MsgOptionText(fmt.Sprintf("画像 ID: %d\n%s", img.ID, img.URL), false),
+			slackapi.MsgOptionAttachments(attachment),
 		)
 		if err != nil {
 			return fmt.Errorf("メッセージの送信に失敗: %w", err)
