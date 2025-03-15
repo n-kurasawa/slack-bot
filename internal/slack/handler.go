@@ -4,11 +4,13 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 
 	"github.com/n-kurasawa/slack-bot/internal/image"
 	slackapi "github.com/slack-go/slack"
+	"github.com/slack-go/slack/slackevents"
 )
 
 type SlackClient interface {
@@ -20,40 +22,41 @@ type ImageStore interface {
 	GetImage() (*image.Image, error)
 }
 
-type Event struct {
-	Token     string `json:"token"`
-	Challenge string `json:"challenge"`
-	Type      string `json:"type"`
-	Event     struct {
-		Type    string `json:"type"`
-		Text    string `json:"text"`
-		Channel string `json:"channel"`
-		User    string `json:"user"`
-	} `json:"event"`
-}
-
 type Handler struct {
-	client   SlackClient
-	db       *sql.DB
-	imgStore ImageStore
+	client     SlackClient
+	db         *sql.DB
+	imgStore   ImageStore
+	signingKey string
 }
 
-func NewHandler(client SlackClient, database *sql.DB, store ImageStore) *Handler {
+func NewHandler(client SlackClient, database *sql.DB, store ImageStore, signingKey string) *Handler {
 	return &Handler{
-		client:   client,
-		db:       database,
-		imgStore: store,
+		client:     client,
+		db:         database,
+		imgStore:   store,
+		signingKey: signingKey,
 	}
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	var event Event
-	if err := json.NewDecoder(r.Body).Decode(&event); err != nil {
-		h.handleError(w, fmt.Errorf("JSONのデコードに失敗: %w", err), http.StatusBadRequest)
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		h.handleError(w, fmt.Errorf("リクエストボディの読み取りに失敗: %w", err), http.StatusBadRequest)
 		return
 	}
 
-	if err := h.handleEvent(w, &event); err != nil {
+	if err := h.verifySignature(r.Header, body); err != nil {
+		h.handleError(w, err, http.StatusUnauthorized)
+		return
+	}
+
+	eventsAPIEvent, err := slackevents.ParseEvent(json.RawMessage(body), slackevents.OptionNoVerifyToken())
+	if err != nil {
+		h.handleError(w, fmt.Errorf("イベントのパースに失敗: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	if err := h.handleEvent(w, &eventsAPIEvent, body); err != nil {
 		h.handleError(w, err, http.StatusInternalServerError)
 		return
 	}
@@ -61,27 +64,48 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func (h *Handler) handleEvent(w http.ResponseWriter, event *Event) error {
+func (h *Handler) verifySignature(header http.Header, body []byte) error {
+	sv, err := slackapi.NewSecretsVerifier(header, h.signingKey)
+	if err != nil {
+		return fmt.Errorf("署名検証の初期化に失敗: %w", err)
+	}
+	if _, err := sv.Write(body); err != nil {
+		return fmt.Errorf("署名の検証に失敗: %w", err)
+	}
+	if err := sv.Ensure(); err != nil {
+		return fmt.Errorf("署名が無効です: %w", err)
+	}
+	return nil
+}
+
+func (h *Handler) handleEvent(w http.ResponseWriter, event *slackevents.EventsAPIEvent, body []byte) error {
 	// URL Verification
-	if event.Type == "url_verification" {
+	if event.Type == slackevents.URLVerification {
+		var r *slackevents.ChallengeResponse
+		if err := json.Unmarshal(body, &r); err != nil {
+			return fmt.Errorf("チャレンジレスポンスのパースに失敗: %w", err)
+		}
 		w.Header().Set("Content-Type", "text/plain")
-		_, err := w.Write([]byte(event.Challenge))
+		_, err := w.Write([]byte(r.Challenge))
 		return err
 	}
 
 	// メッセージイベントの処理
-	if event.Type == "event_callback" && event.Event.Type == "message" {
-		return h.handleMessage(event)
+	if event.Type == slackevents.CallbackEvent {
+		switch ev := event.InnerEvent.Data.(type) {
+		case *slackevents.MessageEvent:
+			return h.handleMessage(ev)
+		}
 	}
 
 	return nil
 }
 
-func (h *Handler) handleMessage(event *Event) error {
-	switch event.Event.Text {
+func (h *Handler) handleMessage(event *slackevents.MessageEvent) error {
+	switch event.Text {
 	case "hello":
 		_, _, err := h.client.PostMessage(
-			event.Event.Channel,
+			event.Channel,
 			slackapi.MsgOptionText("world", false),
 		)
 		if err != nil {
@@ -95,7 +119,7 @@ func (h *Handler) handleMessage(event *Event) error {
 		}
 
 		_, err = h.client.UploadFileV2(slackapi.UploadFileV2Parameters{
-			Channel:  event.Event.Channel,
+			Channel:  event.Channel,
 			Content:  string(img.Data),
 			Filename: fmt.Sprintf("image_%d.jpg", img.ID),
 			FileSize: len(img.Data),
