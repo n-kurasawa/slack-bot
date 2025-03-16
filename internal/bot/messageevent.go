@@ -20,52 +20,68 @@ func NewMessageEventHandler(store ImageStore) *MessageEventHandler {
 func (s *MessageEventHandler) HandleMessage(event *slackevents.MessageEvent) (string, error) {
 	switch {
 	case event.Text == "hello":
-		return "world", nil
+		return s.handleHello()
 
 	case event.Text == "imageList":
 		return s.handleImageList()
 
 	case strings.HasPrefix(event.Text, "image"):
-		parts := strings.Fields(event.Text)
-		var name string
-		if len(parts) > 1 {
-			name = parts[1]
-		}
-
-		var img *Image
-		var err error
-
-		if name != "" {
-			// 名前指定がある場合
-			img, err = s.imgStore.GetImageByName(name)
-		} else {
-			// 名前指定がない場合はランダム
-			img, err = s.imgStore.GetImage()
-		}
-
-		if err != nil {
-			return "", fmt.Errorf("画像の取得に失敗: %w", err)
-		}
-
-		return fmt.Sprintf("%s\n%s", img.Name, img.URL), nil
+		return s.handleImage(event.Text)
 
 	case strings.HasPrefix(event.Text, "updateImage "):
-		parts := strings.Fields(event.Text)
-		if len(parts) != 3 {
-			return "不正なコマンド形式です。使用方法: updateImage NAME URL", nil
-		}
+		return s.handleUpdateImage(event.Text)
 
-		name := parts[1]
-		url := parts[2]
-
-		if err := s.imgStore.SaveImage(name, url); err != nil {
-			return "", fmt.Errorf("画像の保存に失敗: %w", err)
-		}
-
-		return "画像を保存しました :white_check_mark:", nil
 	default:
 		return "", nil
 	}
+}
+
+// helloコマンドの処理
+func (s *MessageEventHandler) handleHello() (string, error) {
+	return "world", nil
+}
+
+// imageコマンドの処理
+func (s *MessageEventHandler) handleImage(text string) (string, error) {
+	parts := strings.Fields(text)
+	var name string
+	if len(parts) > 1 {
+		name = parts[1]
+	}
+
+	var img *Image
+	var err error
+
+	if name != "" {
+		// 名前指定がある場合
+		img, err = s.imgStore.GetImageByName(name)
+	} else {
+		// 名前指定がない場合はランダム
+		img, err = s.imgStore.GetImage()
+	}
+
+	if err != nil {
+		return "", fmt.Errorf("画像の取得に失敗: %w", err)
+	}
+
+	return fmt.Sprintf("%s\n%s", img.Name, img.URL), nil
+}
+
+// updateImageコマンドの処理
+func (s *MessageEventHandler) handleUpdateImage(text string) (string, error) {
+	parts := strings.Fields(text)
+	if len(parts) != 3 {
+		return "不正なコマンド形式です。使用方法: updateImage NAME URL", nil
+	}
+
+	name := parts[1]
+	url := parts[2]
+
+	if err := s.imgStore.SaveImage(name, url); err != nil {
+		return "", fmt.Errorf("画像の保存に失敗: %w", err)
+	}
+
+	return "画像を保存しました :white_check_mark:", nil
 }
 
 // 登録されている画像の一覧を取得して表示する
