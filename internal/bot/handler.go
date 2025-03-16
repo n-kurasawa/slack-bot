@@ -87,12 +87,14 @@ func (h *Handler) handleEvent(w http.ResponseWriter, event *slackevents.EventsAP
 				return fmt.Errorf("メッセージの処理に失敗: %w", err)
 			}
 
-			_, _, err = h.client.PostMessage(
-				ev.Channel,
-				slack.MsgOptionText(res, false),
-			)
-			if err != nil {
-				return fmt.Errorf("メッセージの送信に失敗: %w", err)
+			if res != "" {
+				_, _, err = h.client.PostMessage(
+					ev.Channel,
+					slack.MsgOptionText(res, false),
+				)
+				if err != nil {
+					return fmt.Errorf("メッセージの送信に失敗: %w", err)
+				}
 			}
 		}
 	}

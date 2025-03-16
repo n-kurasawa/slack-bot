@@ -61,6 +61,6 @@ func (s *MessageEventHandler) HandleMessage(event *slackevents.MessageEvent) (st
 
 		return "画像を保存しました :white_check_mark:", nil
 	default:
-		return "", fmt.Errorf("未対応のコマンドです: %s", event.Text)
+		return "", nil
 	}
 }

@@ -15,8 +15,8 @@
 - SQLite3
 - Slack App の設定
   - Event Subscriptions の有効化
-  - Bot Token Scopes: `chat:write`, `app_mentions:read`, `messages.im:read`
-  - Subscribe to bot events: `message.im`
+  - Bot Token Scopes: `chat:write`, `channels:history`
+  - Subscribe to bot events: `message.channels`
 
 ## セットアップ
 
