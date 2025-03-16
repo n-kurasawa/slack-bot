@@ -92,12 +92,38 @@ func TestMessageEventHandler_HandleMessage(t *testing.T) {
 			want:  "不正なコマンド形式です。使用方法: updateImage NAME URL",
 		},
 		{
-			name: "未対応のコマンドの場合はエラーを返す",
+			name: "imageList コマンドが成功する（画像が登録されている場合）",
+			event: &slackevents.MessageEvent{
+				Text: "imageList",
+			},
+			setup: func(store *db.Store) {
+				err := store.SaveImage("test1", "http://example.com/test1.jpg")
+				require.NoError(t, err)
+				err = store.SaveImage("test2", "http://example.com/test2.jpg")
+				require.NoError(t, err)
+			},
+			want: "登録されている画像一覧:\n1. test1: http://example.com/test1.jpg\n2. test2: http://example.com/test2.jpg\n",
+		},
+		{
+			name: "imageList コマンドが成功する（画像が登録されていない場合）",
+			event: &slackevents.MessageEvent{
+				Text: "imageList",
+			},
+			setup: func(store *db.Store) {
+				// テーブルをクリアする
+				_, err := store.DB.Exec("DELETE FROM images")
+				require.NoError(t, err)
+			},
+			want: "登録されている画像はありません",
+		},
+		{
+			name: "未対応のコマンドの場合は空文字列を返す",
 			event: &slackevents.MessageEvent{
 				Text: "unknown",
 			},
 			setup:   func(store *db.Store) {},
-			wantErr: true,
+			want:    "",
+			wantErr: false,
 		},
 	}
 
