@@ -1,4 +1,4 @@
-package slack
+package bot
 
 import (
 	"database/sql"
@@ -9,13 +9,13 @@ import (
 	"net/http"
 	"strings"
 
-	slackapi "github.com/slack-go/slack"
+	"github.com/slack-go/slack"
 	"github.com/slack-go/slack/slackevents"
 )
 
 type SlackClient interface {
-	PostMessage(channelID string, options ...slackapi.MsgOption) (string, string, error)
-	UploadFileV2(params slackapi.UploadFileV2Parameters) (*slackapi.FileSummary, error)
+	PostMessage(channelID string, options ...slack.MsgOption) (string, string, error)
+	UploadFileV2(params slack.UploadFileV2Parameters) (*slack.FileSummary, error)
 }
 
 type ImageStore interface {
@@ -63,7 +63,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) verifySignature(header http.Header, body []byte) error {
-	sv, err := slackapi.NewSecretsVerifier(header, h.signingKey)
+	sv, err := slack.NewSecretsVerifier(header, h.signingKey)
 	if err != nil {
 		return fmt.Errorf("署名検証の初期化に失敗: %w", err)
 	}

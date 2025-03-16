@@ -1,9 +1,9 @@
-package slack
+package bot
 
 import (
 	"fmt"
 
-	slackapi "github.com/slack-go/slack"
+	"github.com/slack-go/slack"
 )
 
 type UseCase struct {
@@ -11,6 +11,7 @@ type UseCase struct {
 	imgStore ImageStore
 }
 
+// Image はSlackボットで扱う画像を表す構造体です
 type Image struct {
 	ID   int
 	URL  string
@@ -27,7 +28,7 @@ func NewUseCase(client SlackClient, store ImageStore) *UseCase {
 func (u *UseCase) SendHelloWorld(channelID string) error {
 	_, _, err := u.client.PostMessage(
 		channelID,
-		slackapi.MsgOptionText("world", false),
+		slack.MsgOptionText("world", false),
 	)
 	if err != nil {
 		return fmt.Errorf("メッセージの送信に失敗: %w", err)
@@ -53,7 +54,7 @@ func (u *UseCase) SendImage(channelID string, name string) error {
 
 	_, _, err = u.client.PostMessage(
 		channelID,
-		slackapi.MsgOptionText(fmt.Sprintf("%s\n%s", img.Name, img.URL), false),
+		slack.MsgOptionText(fmt.Sprintf("%s\n%s", img.Name, img.URL), false),
 	)
 	if err != nil {
 		return fmt.Errorf("メッセージの送信に失敗: %w", err)
@@ -68,7 +69,7 @@ func (u *UseCase) SaveImage(channelID, name, url string) error {
 
 	_, _, err := u.client.PostMessage(
 		channelID,
-		slackapi.MsgOptionText("画像を保存しました :white_check_mark:", false),
+		slack.MsgOptionText("画像を保存しました :white_check_mark:", false),
 	)
 	if err != nil {
 		return fmt.Errorf("メッセージの送信に失敗: %w", err)
@@ -79,7 +80,7 @@ func (u *UseCase) SaveImage(channelID, name, url string) error {
 func (u *UseCase) SendInvalidCommandError(channelID string) error {
 	_, _, err := u.client.PostMessage(
 		channelID,
-		slackapi.MsgOptionText("不正なコマンド形式です。使用方法: updateImage NAME URL", false),
+		slack.MsgOptionText("不正なコマンド形式です。使用方法: updateImage NAME URL", false),
 	)
 	if err != nil {
 		return fmt.Errorf("エラーメッセージの送信に失敗: %w", err)

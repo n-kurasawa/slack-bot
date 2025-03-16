@@ -4,34 +4,34 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/n-kurasawa/slack-bot/internal/config"
+	"github.com/n-kurasawa/slack-bot/internal/bot"
 	"github.com/n-kurasawa/slack-bot/internal/db"
-	"github.com/n-kurasawa/slack-bot/internal/slack"
 	slackapi "github.com/slack-go/slack"
 )
 
+type Config struct {
+	SlackBotToken string
+	DBPath        string
+	Port          string
+}
+
 func main() {
-	cfg, err := config.Load()
-	if err != nil {
-		log.Fatal(err)
+	cfg := &Config{
+		SlackBotToken: "your-token",
+		DBPath:        "images.db",
+		Port:          "8080",
 	}
 
 	client := slackapi.New(cfg.SlackBotToken)
-
 	store, err := db.NewStore(cfg.DBPath)
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer store.DB.Close()
 
-	if err := store.CreateTable(); err != nil {
-		log.Fatal(err)
-	}
-
-	handler := slack.NewHandler(client, store.DB, store, cfg.SlackSigningSecret)
-
+	handler := bot.NewHandler(client, store.DB, store, "your-signing-secret")
 	http.Handle("/slack/events", handler)
-	log.Printf("Starting server on %s", cfg.Port)
+
+	log.Printf("Starting server on port %s", cfg.Port)
 	if err := http.ListenAndServe(":"+cfg.Port, nil); err != nil {
 		log.Fatal(err)
 	}

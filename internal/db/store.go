@@ -6,7 +6,7 @@ import (
 	"math/rand"
 
 	_ "github.com/mattn/go-sqlite3"
-	"github.com/n-kurasawa/slack-bot/internal/slack"
+	"github.com/n-kurasawa/slack-bot/internal/bot"
 )
 
 type Store struct {
@@ -36,16 +36,16 @@ func (s *Store) CreateTable() error {
 	return nil
 }
 
-func (s *Store) ListImages() ([]slack.Image, error) {
+func (s *Store) ListImages() ([]bot.Image, error) {
 	rows, err := s.DB.Query("SELECT id, url, name FROM images")
 	if err != nil {
 		return nil, fmt.Errorf("画像の一覧取得に失敗: %w", err)
 	}
 	defer rows.Close()
 
-	var images []slack.Image
+	var images []bot.Image
 	for rows.Next() {
-		var img slack.Image
+		var img bot.Image
 		if err := rows.Scan(&img.ID, &img.URL, &img.Name); err != nil {
 			return nil, fmt.Errorf("画像データの読み取りに失敗: %w", err)
 		}
@@ -67,7 +67,7 @@ func (s *Store) SaveImage(name, url string) error {
 	return nil
 }
 
-func (s *Store) GetImage() (*slack.Image, error) {
+func (s *Store) GetImage() (*bot.Image, error) {
 	// 画像の総数を取得
 	var count int
 	err := s.DB.QueryRow("SELECT COUNT(*) FROM images").Scan(&count)
@@ -82,7 +82,7 @@ func (s *Store) GetImage() (*slack.Image, error) {
 	// ランダムなオフセットを生成
 	offset := rand.Intn(count)
 
-	var img slack.Image
+	var img bot.Image
 	err = s.DB.QueryRow("SELECT id, url, name FROM images LIMIT 1 OFFSET ?", offset).Scan(&img.ID, &img.URL, &img.Name)
 	if err != nil {
 		return nil, fmt.Errorf("画像の取得に失敗: %w", err)
@@ -90,8 +90,8 @@ func (s *Store) GetImage() (*slack.Image, error) {
 	return &img, nil
 }
 
-func (s *Store) GetImageByName(name string) (*slack.Image, error) {
-	var img slack.Image
+func (s *Store) GetImageByName(name string) (*bot.Image, error) {
+	var img bot.Image
 	err := s.DB.QueryRow("SELECT id, url, name FROM images WHERE name = ?", name).Scan(&img.ID, &img.URL, &img.Name)
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("指定された名前の画像が見つかりません: %s", name)
