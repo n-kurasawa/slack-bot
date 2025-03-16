@@ -7,17 +7,17 @@ import (
 	"github.com/slack-go/slack/slackevents"
 )
 
-type MessageEventService struct {
+type MessageEventHandler struct {
 	imgStore ImageStore
 }
 
-func NewMessageEventService(store ImageStore) *MessageEventService {
-	return &MessageEventService{
+func NewMessageEventHandler(store ImageStore) *MessageEventHandler {
+	return &MessageEventHandler{
 		imgStore: store,
 	}
 }
 
-func (s *MessageEventService) HandleMessage(event *slackevents.MessageEvent) (string, error) {
+func (s *MessageEventHandler) HandleMessage(event *slackevents.MessageEvent) (string, error) {
 	switch {
 	case event.Text == "hello":
 		return "world", nil

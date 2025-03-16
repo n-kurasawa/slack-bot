@@ -13,14 +13,14 @@ import (
 )
 
 type Handler struct {
-	messageEventService *MessageEventService
+	messageEventHandler *MessageEventHandler
 	signingKey          string
 	client              SlackClient
 }
 
 func NewHandler(client SlackClient, database *sql.DB, store ImageStore, signingKey string) *Handler {
 	return &Handler{
-		messageEventService: NewMessageEventService(store),
+		messageEventHandler: NewMessageEventHandler(store),
 		signingKey:          signingKey,
 		client:              client,
 	}
@@ -82,7 +82,7 @@ func (h *Handler) handleEvent(w http.ResponseWriter, event *slackevents.EventsAP
 	if event.Type == slackevents.CallbackEvent {
 		switch ev := event.InnerEvent.Data.(type) {
 		case *slackevents.MessageEvent:
-			res, err := h.messageEventService.HandleMessage(ev)
+			res, err := h.messageEventHandler.HandleMessage(ev)
 			if err != nil {
 				return fmt.Errorf("メッセージの処理に失敗: %w", err)
 			}
