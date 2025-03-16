@@ -14,14 +14,14 @@ import (
 )
 
 type Handler struct {
-	useCase    *UseCase
-	signingKey string
+	messageEventService *MessageEventService
+	signingKey          string
 }
 
 func NewHandler(client *slack.Client, database *sql.DB, store ImageStore, signingKey string) *Handler {
 	return &Handler{
-		useCase:    NewUseCase(client, store),
-		signingKey: signingKey,
+		messageEventService: NewMessageEventService(client, store),
+		signingKey:          signingKey,
 	}
 }
 
@@ -91,7 +91,7 @@ func (h *Handler) handleEvent(w http.ResponseWriter, event *slackevents.EventsAP
 func (h *Handler) handleMessage(event *slackevents.MessageEvent) error {
 	switch {
 	case event.Text == "hello":
-		return h.useCase.SendHelloWorld(event.Channel)
+		return h.messageEventService.SendHelloWorld(event.Channel)
 
 	case strings.HasPrefix(event.Text, "image"):
 		parts := strings.Fields(event.Text)
@@ -99,17 +99,17 @@ func (h *Handler) handleMessage(event *slackevents.MessageEvent) error {
 		if len(parts) > 1 {
 			name = parts[1]
 		}
-		return h.useCase.SendImage(event.Channel, name)
+		return h.messageEventService.SendImage(event.Channel, name)
 
 	case strings.HasPrefix(event.Text, "updateImage "):
 		parts := strings.Fields(event.Text)
 		if len(parts) != 3 {
-			return h.useCase.SendInvalidCommandError(event.Channel)
+			return h.messageEventService.SendInvalidCommandError(event.Channel)
 		}
 
 		name := parts[1]
 		url := parts[2]
-		return h.useCase.SaveImage(event.Channel, name, url)
+		return h.messageEventService.SaveImage(event.Channel, name, url)
 	}
 
 	return nil
