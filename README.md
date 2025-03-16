@@ -6,6 +6,7 @@
 - "image" コマンドで登録された画像を返信
   - `image` - ランダムな画像を返信
   - `image NAME` - 指定した名前の画像を返信
+- "imageList" コマンドで登録されている画像の一覧を表示
 - "updateImage" コマンドで画像を登録
   - 使用方法: `updateImage NAME URL`
 
@@ -65,6 +66,7 @@ Slack でボットとのダイレクトメッセージで以下のコマンド�
 - `hello` - "world" と返信します
 - `image` - ランダムな画像を返信します
 - `image NAME` - 指定した名前の画像を返信します
+- `imageList` - 登録されているすべての画像の一覧を表示します
 - `updateImage NAME URL` - 新しい画像を登録します
 
 ## Slack App の設定
