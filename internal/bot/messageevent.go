@@ -2,8 +2,10 @@ package bot
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/slack-go/slack"
+	"github.com/slack-go/slack/slackevents"
 )
 
 type MessageEventService struct {
@@ -16,6 +18,33 @@ func NewMessageEventService(client *slack.Client, store ImageStore) *MessageEven
 		client:   client,
 		imgStore: store,
 	}
+}
+
+func (s *MessageEventService) HandleMessage(event *slackevents.MessageEvent) error {
+	switch {
+	case event.Text == "hello":
+		return s.SendHelloWorld(event.Channel)
+
+	case strings.HasPrefix(event.Text, "image"):
+		parts := strings.Fields(event.Text)
+		var name string
+		if len(parts) > 1 {
+			name = parts[1]
+		}
+		return s.SendImage(event.Channel, name)
+
+	case strings.HasPrefix(event.Text, "updateImage "):
+		parts := strings.Fields(event.Text)
+		if len(parts) != 3 {
+			return s.SendInvalidCommandError(event.Channel)
+		}
+
+		name := parts[1]
+		url := parts[2]
+		return s.SaveImage(event.Channel, name, url)
+	}
+
+	return nil
 }
 
 func (s *MessageEventService) SendHelloWorld(channelID string) error {

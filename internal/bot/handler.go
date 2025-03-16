@@ -7,7 +7,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"strings"
 
 	"github.com/slack-go/slack"
 	"github.com/slack-go/slack/slackevents"
@@ -81,35 +80,8 @@ func (h *Handler) handleEvent(w http.ResponseWriter, event *slackevents.EventsAP
 	if event.Type == slackevents.CallbackEvent {
 		switch ev := event.InnerEvent.Data.(type) {
 		case *slackevents.MessageEvent:
-			return h.handleMessage(ev)
+			return h.messageEventService.HandleMessage(ev)
 		}
-	}
-
-	return nil
-}
-
-func (h *Handler) handleMessage(event *slackevents.MessageEvent) error {
-	switch {
-	case event.Text == "hello":
-		return h.messageEventService.SendHelloWorld(event.Channel)
-
-	case strings.HasPrefix(event.Text, "image"):
-		parts := strings.Fields(event.Text)
-		var name string
-		if len(parts) > 1 {
-			name = parts[1]
-		}
-		return h.messageEventService.SendImage(event.Channel, name)
-
-	case strings.HasPrefix(event.Text, "updateImage "):
-		parts := strings.Fields(event.Text)
-		if len(parts) != 3 {
-			return h.messageEventService.SendInvalidCommandError(event.Channel)
-		}
-
-		name := parts[1]
-		url := parts[2]
-		return h.messageEventService.SaveImage(event.Channel, name, url)
 	}
 
 	return nil
