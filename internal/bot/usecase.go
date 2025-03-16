@@ -7,18 +7,11 @@ import (
 )
 
 type UseCase struct {
-	client   SlackClient
+	client   *slack.Client
 	imgStore ImageStore
 }
 
-// Image はSlackボットで扱う画像を表す構造体です
-type Image struct {
-	ID   int
-	URL  string
-	Name string
-}
-
-func NewUseCase(client SlackClient, store ImageStore) *UseCase {
+func NewUseCase(client *slack.Client, store ImageStore) *UseCase {
 	return &UseCase{
 		client:   client,
 		imgStore: store,

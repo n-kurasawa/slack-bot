@@ -13,23 +13,12 @@ import (
 	"github.com/slack-go/slack/slackevents"
 )
 
-type SlackClient interface {
-	PostMessage(channelID string, options ...slack.MsgOption) (string, string, error)
-	UploadFileV2(params slack.UploadFileV2Parameters) (*slack.FileSummary, error)
-}
-
-type ImageStore interface {
-	GetImage() (*Image, error)
-	GetImageByName(name string) (*Image, error)
-	SaveImage(name, url string) error
-}
-
 type Handler struct {
 	useCase    *UseCase
 	signingKey string
 }
 
-func NewHandler(client SlackClient, database *sql.DB, store ImageStore, signingKey string) *Handler {
+func NewHandler(client *slack.Client, database *sql.DB, store ImageStore, signingKey string) *Handler {
 	return &Handler{
 		useCase:    NewUseCase(client, store),
 		signingKey: signingKey,
