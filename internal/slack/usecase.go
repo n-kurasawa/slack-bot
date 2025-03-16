@@ -35,7 +35,7 @@ func (u *UseCase) SendHelloWorld(channelID string) error {
 	return nil
 }
 
-func (u *UseCase) GetAndSendImage(channelID string, name string) error {
+func (u *UseCase) SendImage(channelID string, name string) error {
 	var img *Image
 	var err error
 
@@ -53,7 +53,7 @@ func (u *UseCase) GetAndSendImage(channelID string, name string) error {
 
 	_, _, err = u.client.PostMessage(
 		channelID,
-		slackapi.MsgOptionText(fmt.Sprintf("画像 ID: %d\n%s", img.ID, img.URL), false),
+		slackapi.MsgOptionText(fmt.Sprintf("%s\n%s", img.Name, img.URL), false),
 	)
 	if err != nil {
 		return fmt.Errorf("メッセージの送信に失敗: %w", err)

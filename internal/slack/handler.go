@@ -110,7 +110,7 @@ func (h *Handler) handleMessage(event *slackevents.MessageEvent) error {
 		if len(parts) > 1 {
 			name = parts[1]
 		}
-		return h.useCase.GetAndSendImage(event.Channel, name)
+		return h.useCase.SendImage(event.Channel, name)
 
 	case strings.HasPrefix(event.Text, "updateImage "):
 		parts := strings.Fields(event.Text)
