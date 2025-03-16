@@ -11,22 +11,16 @@ type MessageEventService struct {
 	imgStore ImageStore
 }
 
-type Response struct {
-	Text string
-}
-
 func NewMessageEventService(store ImageStore) *MessageEventService {
 	return &MessageEventService{
 		imgStore: store,
 	}
 }
 
-func (s *MessageEventService) HandleMessage(event *slackevents.MessageEvent) (*Response, error) {
+func (s *MessageEventService) HandleMessage(event *slackevents.MessageEvent) (string, error) {
 	switch {
 	case event.Text == "hello":
-		return &Response{
-			Text: "world",
-		}, nil
+		return "world", nil
 
 	case strings.HasPrefix(event.Text, "image"):
 		parts := strings.Fields(event.Text)
@@ -47,32 +41,26 @@ func (s *MessageEventService) HandleMessage(event *slackevents.MessageEvent) (*R
 		}
 
 		if err != nil {
-			return nil, fmt.Errorf("画像の取得に失敗: %w", err)
+			return "", fmt.Errorf("画像の取得に失敗: %w", err)
 		}
 
-		return &Response{
-			Text: fmt.Sprintf("%s\n%s", img.Name, img.URL),
-		}, nil
+		return fmt.Sprintf("%s\n%s", img.Name, img.URL), nil
 
 	case strings.HasPrefix(event.Text, "updateImage "):
 		parts := strings.Fields(event.Text)
 		if len(parts) != 3 {
-			return &Response{
-				Text: "不正なコマンド形式です。使用方法: updateImage NAME URL",
-			}, nil
+			return "不正なコマンド形式です。使用方法: updateImage NAME URL", nil
 		}
 
 		name := parts[1]
 		url := parts[2]
 
 		if err := s.imgStore.SaveImage(name, url); err != nil {
-			return nil, fmt.Errorf("画像の保存に失敗: %w", err)
+			return "", fmt.Errorf("画像の保存に失敗: %w", err)
 		}
 
-		return &Response{
-			Text: "画像を保存しました :white_check_mark:",
-		}, nil
+		return "画像を保存しました :white_check_mark:", nil
+	default:
+		return "", fmt.Errorf("未対応のコマンドです: %s", event.Text)
 	}
-
-	return nil, nil
 }
