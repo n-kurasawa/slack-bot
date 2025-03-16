@@ -1,4 +1,4 @@
-package image
+package db
 
 import (
 	"database/sql"
@@ -6,28 +6,23 @@ import (
 	"math/rand"
 
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/n-kurasawa/slack-bot/internal/slack"
 )
 
-type Image struct {
-	ID   int
-	URL  string
-	Name string
-}
-
-type SQLiteStore struct {
+type Store struct {
 	DB *sql.DB
 }
 
-func NewStore(dbPath string) (*SQLiteStore, error) {
+func NewStore(dbPath string) (*Store, error) {
 	db, err := sql.Open("sqlite3", dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("データベースのオープンに失敗: %w", err)
 	}
 
-	return &SQLiteStore{DB: db}, nil
+	return &Store{DB: db}, nil
 }
 
-func (s *SQLiteStore) CreateTable() error {
+func (s *Store) CreateTable() error {
 	_, err := s.DB.Exec(`
 		CREATE TABLE IF NOT EXISTS images (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -41,16 +36,16 @@ func (s *SQLiteStore) CreateTable() error {
 	return nil
 }
 
-func (s *SQLiteStore) ListImages() ([]Image, error) {
+func (s *Store) ListImages() ([]slack.Image, error) {
 	rows, err := s.DB.Query("SELECT id, url, name FROM images")
 	if err != nil {
 		return nil, fmt.Errorf("画像の一覧取得に失敗: %w", err)
 	}
 	defer rows.Close()
 
-	var images []Image
+	var images []slack.Image
 	for rows.Next() {
-		var img Image
+		var img slack.Image
 		if err := rows.Scan(&img.ID, &img.URL, &img.Name); err != nil {
 			return nil, fmt.Errorf("画像データの読み取りに失敗: %w", err)
 		}
@@ -64,7 +59,7 @@ func (s *SQLiteStore) ListImages() ([]Image, error) {
 	return images, nil
 }
 
-func (s *SQLiteStore) SaveImage(name, url string) error {
+func (s *Store) SaveImage(name, url string) error {
 	_, err := s.DB.Exec("INSERT INTO images (url, name) VALUES (?, ?)", url, name)
 	if err != nil {
 		return fmt.Errorf("画像の保存に失敗: %w", err)
@@ -72,7 +67,7 @@ func (s *SQLiteStore) SaveImage(name, url string) error {
 	return nil
 }
 
-func (s *SQLiteStore) GetImage() (*Image, error) {
+func (s *Store) GetImage() (*slack.Image, error) {
 	// 画像の総数を取得
 	var count int
 	err := s.DB.QueryRow("SELECT COUNT(*) FROM images").Scan(&count)
@@ -87,7 +82,7 @@ func (s *SQLiteStore) GetImage() (*Image, error) {
 	// ランダムなオフセットを生成
 	offset := rand.Intn(count)
 
-	var img Image
+	var img slack.Image
 	err = s.DB.QueryRow("SELECT id, url, name FROM images LIMIT 1 OFFSET ?", offset).Scan(&img.ID, &img.URL, &img.Name)
 	if err != nil {
 		return nil, fmt.Errorf("画像の取得に失敗: %w", err)
@@ -95,8 +90,8 @@ func (s *SQLiteStore) GetImage() (*Image, error) {
 	return &img, nil
 }
 
-func (s *SQLiteStore) GetImageByName(name string) (*Image, error) {
-	var img Image
+func (s *Store) GetImageByName(name string) (*slack.Image, error) {
+	var img slack.Image
 	err := s.DB.QueryRow("SELECT id, url, name FROM images WHERE name = ?", name).Scan(&img.ID, &img.URL, &img.Name)
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("指定された名前の画像が見つかりません: %s", name)

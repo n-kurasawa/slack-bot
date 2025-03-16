@@ -6,7 +6,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/n-kurasawa/slack-bot/internal/image"
+	"github.com/n-kurasawa/slack-bot/internal/db"
 )
 
 func main() {
@@ -16,7 +16,7 @@ func main() {
 	list := flag.Bool("list", false, "画像の一覧を表示")
 	flag.Parse()
 
-	store, err := image.NewStore(*dbPath)
+	store, err := db.NewStore(*dbPath)
 	if err != nil {
 		log.Fatal(err)
 	}

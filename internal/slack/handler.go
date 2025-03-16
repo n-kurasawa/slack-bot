@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/n-kurasawa/slack-bot/internal/image"
 	slackapi "github.com/slack-go/slack"
 	"github.com/slack-go/slack/slackevents"
 )
@@ -20,23 +19,19 @@ type SlackClient interface {
 }
 
 type ImageStore interface {
-	GetImage() (*image.Image, error)
-	GetImageByName(name string) (*image.Image, error)
+	GetImage() (*Image, error)
+	GetImageByName(name string) (*Image, error)
 	SaveImage(name, url string) error
 }
 
 type Handler struct {
-	client     SlackClient
-	db         *sql.DB
-	imgStore   ImageStore
+	useCase    *UseCase
 	signingKey string
 }
 
 func NewHandler(client SlackClient, database *sql.DB, store ImageStore, signingKey string) *Handler {
 	return &Handler{
-		client:     client,
-		db:         database,
-		imgStore:   store,
+		useCase:    NewUseCase(client, store),
 		signingKey: signingKey,
 	}
 }
@@ -107,65 +102,25 @@ func (h *Handler) handleEvent(w http.ResponseWriter, event *slackevents.EventsAP
 func (h *Handler) handleMessage(event *slackevents.MessageEvent) error {
 	switch {
 	case event.Text == "hello":
-		_, _, err := h.client.PostMessage(
-			event.Channel,
-			slackapi.MsgOptionText("world", false),
-		)
-		if err != nil {
-			return fmt.Errorf("メッセージの送信に失敗: %w", err)
-		}
+		return h.useCase.SendHelloWorld(event.Channel)
 
 	case strings.HasPrefix(event.Text, "image"):
-		var img *image.Image
-		var err error
-
 		parts := strings.Fields(event.Text)
+		var name string
 		if len(parts) > 1 {
-			// 名前指定がある場合
-			img, err = h.imgStore.GetImageByName(parts[1])
-		} else {
-			// 名前指定がない場合はランダム
-			img, err = h.imgStore.GetImage()
+			name = parts[1]
 		}
-
-		if err != nil {
-			return fmt.Errorf("画像の取得に失敗: %w", err)
-		}
-
-		_, _, err = h.client.PostMessage(
-			event.Channel,
-			slackapi.MsgOptionText(fmt.Sprintf("画像 ID: %d\n%s", img.ID, img.URL), false),
-		)
-		if err != nil {
-			return fmt.Errorf("メッセージの送信に失敗: %w", err)
-		}
+		return h.useCase.GetAndSendImage(event.Channel, name)
 
 	case strings.HasPrefix(event.Text, "updateImage "):
 		parts := strings.Fields(event.Text)
 		if len(parts) != 3 {
-			_, _, err := h.client.PostMessage(
-				event.Channel,
-				slackapi.MsgOptionText("不正なコマンド形式です。使用方法: updateImage NAME URL", false),
-			)
-			if err != nil {
-				return fmt.Errorf("エラーメッセージの送信に失敗: %w", err)
-			}
-			return nil
+			return h.useCase.SendInvalidCommandError(event.Channel)
 		}
 
 		name := parts[1]
 		url := parts[2]
-		if err := h.imgStore.SaveImage(name, url); err != nil {
-			return fmt.Errorf("画像の保存に失敗: %w", err)
-		}
-
-		_, _, err := h.client.PostMessage(
-			event.Channel,
-			slackapi.MsgOptionText("画像を保存しました :white_check_mark:", false),
-		)
-		if err != nil {
-			return fmt.Errorf("メッセージの送信に失敗: %w", err)
-		}
+		return h.useCase.SaveImage(event.Channel, name, url)
 	}
 
 	return nil

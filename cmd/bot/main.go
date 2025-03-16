@@ -4,11 +4,10 @@ import (
 	"log"
 	"net/http"
 
-	slackapi "github.com/slack-go/slack"
-
 	"github.com/n-kurasawa/slack-bot/internal/config"
-	"github.com/n-kurasawa/slack-bot/internal/image"
+	"github.com/n-kurasawa/slack-bot/internal/db"
 	"github.com/n-kurasawa/slack-bot/internal/slack"
+	slackapi "github.com/slack-go/slack"
 )
 
 func main() {
@@ -19,7 +18,7 @@ func main() {
 
 	client := slackapi.New(cfg.SlackBotToken)
 
-	store, err := image.NewStore(cfg.DBPath)
+	store, err := db.NewStore(cfg.DBPath)
 	if err != nil {
 		log.Fatal(err)
 	}
