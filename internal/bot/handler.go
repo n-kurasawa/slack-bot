@@ -17,7 +17,7 @@ type Handler struct {
 	signingKey          string
 }
 
-func NewHandler(client *slack.Client, database *sql.DB, store ImageStore, signingKey string) *Handler {
+func NewHandler(client SlackClient, database *sql.DB, store ImageStore, signingKey string) *Handler {
 	return &Handler{
 		messageEventService: NewMessageEventService(client, store),
 		signingKey:          signingKey,

@@ -9,11 +9,11 @@ import (
 )
 
 type MessageEventService struct {
-	client   *slack.Client
+	client   SlackClient
 	imgStore ImageStore
 }
 
-func NewMessageEventService(client *slack.Client, store ImageStore) *MessageEventService {
+func NewMessageEventService(client SlackClient, store ImageStore) *MessageEventService {
 	return &MessageEventService{
 		client:   client,
 		imgStore: store,
