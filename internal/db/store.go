@@ -101,3 +101,9 @@ func (s *Store) GetImageByName(name string) (*bot.Image, error) {
 	}
 	return &img, nil
 }
+
+// 画像削除機能（Storeに実装されていないため、ここで定義）
+func (s *Store) DeleteImage(id int) error {
+	_, err := s.DB.Exec("DELETE FROM images WHERE id = ?", id)
+	return err
+}

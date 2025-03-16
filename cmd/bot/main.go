@@ -25,8 +25,8 @@ func main() {
 	handler := bot.NewHandler(client, store.DB, store, cfg.SlackSigningSecret)
 	http.Handle("/slack/events", handler)
 
-	log.Printf("Starting server on port %s", cfg.Port)
-	if err := http.ListenAndServe(":"+cfg.Port, nil); err != nil {
+	log.Printf("Starting server on port %s", cfg.BotPort)
+	if err := http.ListenAndServe(":"+cfg.BotPort, nil); err != nil {
 		log.Fatal(err)
 	}
 }

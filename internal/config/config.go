@@ -11,7 +11,8 @@ type Config struct {
 	SlackBotToken      string
 	SlackSigningSecret string
 	DBPath             string
-	Port               string
+	BotPort            string
+	WebPort            string
 }
 
 func Load() (*Config, error) {
@@ -33,7 +34,8 @@ func Load() (*Config, error) {
 		SlackBotToken:      token,
 		SlackSigningSecret: signingSecret,
 		DBPath:             os.Getenv("DB_PATH"),
-		Port:               getEnvWithDefault("PORT", "3000"),
+		BotPort:            getEnvWithDefault("BOT_PORT", "3000"),
+		WebPort:            getEnvWithDefault("WEB_PORT", "8080"),
 	}, nil
 }
 
