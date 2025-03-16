@@ -30,7 +30,7 @@ cd slack-bot
 2. 依存関係のインストール
 
 ```bash
-go mod download
+go mod tidy
 ```
 
 3. 環境変数の設定
