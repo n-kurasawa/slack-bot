@@ -22,7 +22,7 @@ type SlackClient interface {
 type ImageStore interface {
 	GetImage() (*image.Image, error)
 	GetImageByName(name string) (*image.Image, error)
-	SaveImage(url string) error
+	SaveImage(name, url string) error
 }
 
 type Handler struct {
@@ -141,8 +141,21 @@ func (h *Handler) handleMessage(event *slackevents.MessageEvent) error {
 		}
 
 	case strings.HasPrefix(event.Text, "updateImage "):
-		url := strings.TrimPrefix(event.Text, "updateImage ")
-		if err := h.imgStore.SaveImage(url); err != nil {
+		parts := strings.Fields(event.Text)
+		if len(parts) != 3 {
+			_, _, err := h.client.PostMessage(
+				event.Channel,
+				slackapi.MsgOptionText("不正なコマンド形式です。使用方法: updateImage NAME URL", false),
+			)
+			if err != nil {
+				return fmt.Errorf("エラーメッセージの送信に失敗: %w", err)
+			}
+			return nil
+		}
+
+		name := parts[1]
+		url := parts[2]
+		if err := h.imgStore.SaveImage(name, url); err != nil {
 			return fmt.Errorf("画像の保存に失敗: %w", err)
 		}
 

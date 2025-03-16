@@ -35,18 +35,27 @@ func (m *mockSlackClient) UploadFileV2(params slackapi.UploadFileV2Parameters) (
 }
 
 type mockImageStore struct {
-	savedURL string
-	image    *image.Image
+	savedName string
+	savedURL  string
+	image     *image.Image
 }
 
 func (m *mockImageStore) GetImage() (*image.Image, error) {
 	if m.image != nil {
 		return m.image, nil
 	}
-	return &image.Image{ID: 1, URL: "https://example.com/image.jpg"}, nil
+	return &image.Image{ID: 1, URL: "https://example.com/image.jpg", Name: "test"}, nil
 }
 
-func (m *mockImageStore) SaveImage(url string) error {
+func (m *mockImageStore) GetImageByName(name string) (*image.Image, error) {
+	if m.image != nil {
+		return m.image, nil
+	}
+	return &image.Image{ID: 1, URL: "https://example.com/image.jpg", Name: name}, nil
+}
+
+func (m *mockImageStore) SaveImage(name, url string) error {
+	m.savedName = name
 	m.savedURL = url
 	return nil
 }
@@ -144,51 +153,97 @@ func TestHandler(t *testing.T) {
 }
 
 func TestHandleMessage_UpdateImage(t *testing.T) {
-	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
-
-	mockClient := &mockSlackClient{}
-	mockStore := &mockImageStore{}
-
-	// updateImageコマンドのイベントを作成
-	body, err := json.Marshal(map[string]interface{}{
-		"type": "event_callback",
-		"event": map[string]interface{}{
-			"type":    "message",
-			"text":    "updateImage https://example.com/image.jpg",
-			"channel": "test-channel",
+	tests := []struct {
+		name       string
+		text       string
+		wantName   string
+		wantURL    string
+		wantStatus int
+		wantError  bool
+	}{
+		{
+			name:       "画像の保存（正常系）",
+			text:       "updateImage cat https://example.com/image.jpg",
+			wantName:   "cat",
+			wantURL:    "https://example.com/image.jpg",
+			wantStatus: http.StatusOK,
+			wantError:  false,
 		},
-	})
-	if err != nil {
-		t.Fatal(err)
+		{
+			name:       "画像の保存（引数不足）",
+			text:       "updateImage cat",
+			wantName:   "",
+			wantURL:    "",
+			wantStatus: http.StatusOK,
+			wantError:  true,
+		},
+		{
+			name:       "画像の保存（引数なし）",
+			text:       "updateImage",
+			wantName:   "",
+			wantURL:    "",
+			wantStatus: http.StatusOK,
+			wantError:  true,
+		},
 	}
 
-	// リクエストを作成
-	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
-	w := httptest.NewRecorder()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			timestamp := strconv.FormatInt(time.Now().Unix(), 10)
+			mockClient := &mockSlackClient{}
+			mockStore := &mockImageStore{}
 
-	// タイムスタンプとシグネチャを設定
-	req.Header.Set("X-Slack-Request-Timestamp", timestamp)
-	req.Header.Set("X-Slack-Signature", generateSignature(t, testSigningSecret, timestamp, body))
+			// イベントを作成
+			body, err := json.Marshal(map[string]interface{}{
+				"type": "event_callback",
+				"event": map[string]interface{}{
+					"type":    "message",
+					"text":    tt.text,
+					"channel": "test-channel",
+				},
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
 
-	// ハンドラーを作成して実行
-	h := NewHandler(mockClient, nil, mockStore, testSigningSecret)
-	h.ServeHTTP(w, req)
+			// リクエストを作成
+			req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
+			w := httptest.NewRecorder()
 
-	// レスポンスを検証
-	if w.Code != http.StatusOK {
-		t.Errorf("want status %d, got %d", http.StatusOK, w.Code)
-	}
+			// タイムスタンプとシグネチャを設定
+			req.Header.Set("X-Slack-Request-Timestamp", timestamp)
+			req.Header.Set("X-Slack-Signature", generateSignature(t, testSigningSecret, timestamp, body))
 
-	// 保存されたURLを検証
-	wantURL := "https://example.com/image.jpg"
-	if mockStore.savedURL != wantURL {
-		t.Errorf("saved URL does not match: want %v, got %v", wantURL, mockStore.savedURL)
-	}
+			// ハンドラーを作成して実行
+			h := NewHandler(mockClient, nil, mockStore, testSigningSecret)
+			h.ServeHTTP(w, req)
 
-	// 送信されたメッセージを検証
-	wantMessage := "画像を保存しました :white_check_mark:"
-	if len(mockClient.messages) != 1 || mockClient.messages[0] != wantMessage {
-		t.Errorf("sent message does not match: want %v, got %v", wantMessage, mockClient.messages)
+			// レスポンスを検証
+			if w.Code != tt.wantStatus {
+				t.Errorf("want status %d, got %d", tt.wantStatus, w.Code)
+			}
+
+			// 保存された値を検証
+			if tt.wantName != "" && mockStore.savedName != tt.wantName {
+				t.Errorf("saved name does not match: want %v, got %v", tt.wantName, mockStore.savedName)
+			}
+			if tt.wantURL != "" && mockStore.savedURL != tt.wantURL {
+				t.Errorf("saved URL does not match: want %v, got %v", tt.wantURL, mockStore.savedURL)
+			}
+
+			// エラーケースの検証
+			if tt.wantError {
+				if len(mockClient.messages) > 0 {
+					t.Error("エラー時にメッセージが送信されてはいけません")
+				}
+			} else {
+				// 成功時のメッセージを検証
+				wantMessage := "画像を保存しました :white_check_mark:"
+				if len(mockClient.messages) != 1 || mockClient.messages[0] != wantMessage {
+					t.Errorf("sent message does not match: want %v, got %v", wantMessage, mockClient.messages)
+				}
+			}
+		})
 	}
 }
 

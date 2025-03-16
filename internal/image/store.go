@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"math/rand"
-	"strings"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -33,7 +32,7 @@ func (s *SQLiteStore) CreateTable() error {
 		CREATE TABLE IF NOT EXISTS images (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			url TEXT NOT NULL,
-			name TEXT NOT NULL
+			name TEXT
 		)
 	`)
 	if err != nil {
@@ -65,15 +64,8 @@ func (s *SQLiteStore) ListImages() ([]Image, error) {
 	return images, nil
 }
 
-func (s *SQLiteStore) SaveImage(url string) error {
-	parts := strings.Split(url, " ")
-	if len(parts) < 2 {
-		return fmt.Errorf("画像の名前が指定されていません。形式: URL NAME")
-	}
-	imageURL := parts[0]
-	name := parts[1]
-
-	_, err := s.DB.Exec("INSERT INTO images (url, name) VALUES (?, ?)", imageURL, name)
+func (s *SQLiteStore) SaveImage(name, url string) error {
+	_, err := s.DB.Exec("INSERT INTO images (url, name) VALUES (?, ?)", url, name)
 	if err != nil {
 		return fmt.Errorf("画像の保存に失敗: %w", err)
 	}
