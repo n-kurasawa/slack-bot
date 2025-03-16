@@ -4,26 +4,29 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/slack-go/slack"
 	"github.com/slack-go/slack/slackevents"
 )
 
 type MessageEventService struct {
-	client   SlackClient
 	imgStore ImageStore
 }
 
-func NewMessageEventService(client SlackClient, store ImageStore) *MessageEventService {
+type Response struct {
+	Text string
+}
+
+func NewMessageEventService(store ImageStore) *MessageEventService {
 	return &MessageEventService{
-		client:   client,
 		imgStore: store,
 	}
 }
 
-func (s *MessageEventService) HandleMessage(event *slackevents.MessageEvent) error {
+func (s *MessageEventService) HandleMessage(event *slackevents.MessageEvent) (*Response, error) {
 	switch {
 	case event.Text == "hello":
-		return s.sendHelloWorld(event.Channel)
+		return &Response{
+			Text: "world",
+		}, nil
 
 	case strings.HasPrefix(event.Text, "image"):
 		parts := strings.Fields(event.Text)
@@ -31,81 +34,45 @@ func (s *MessageEventService) HandleMessage(event *slackevents.MessageEvent) err
 		if len(parts) > 1 {
 			name = parts[1]
 		}
-		return s.sendImage(event.Channel, name)
+
+		var img *Image
+		var err error
+
+		if name != "" {
+			// 名前指定がある場合
+			img, err = s.imgStore.GetImageByName(name)
+		} else {
+			// 名前指定がない場合はランダム
+			img, err = s.imgStore.GetImage()
+		}
+
+		if err != nil {
+			return nil, fmt.Errorf("画像の取得に失敗: %w", err)
+		}
+
+		return &Response{
+			Text: fmt.Sprintf("%s\n%s", img.Name, img.URL),
+		}, nil
 
 	case strings.HasPrefix(event.Text, "updateImage "):
 		parts := strings.Fields(event.Text)
 		if len(parts) != 3 {
-			return s.sendInvalidCommandError(event.Channel)
+			return &Response{
+				Text: "不正なコマンド形式です。使用方法: updateImage NAME URL",
+			}, nil
 		}
 
 		name := parts[1]
 		url := parts[2]
-		return s.saveImage(event.Channel, name, url)
+
+		if err := s.imgStore.SaveImage(name, url); err != nil {
+			return nil, fmt.Errorf("画像の保存に失敗: %w", err)
+		}
+
+		return &Response{
+			Text: "画像を保存しました :white_check_mark:",
+		}, nil
 	}
 
-	return nil
-}
-
-func (s *MessageEventService) sendHelloWorld(channelID string) error {
-	_, _, err := s.client.PostMessage(
-		channelID,
-		slack.MsgOptionText("world", false),
-	)
-	if err != nil {
-		return fmt.Errorf("メッセージの送信に失敗: %w", err)
-	}
-	return nil
-}
-
-func (s *MessageEventService) sendImage(channelID string, name string) error {
-	var img *Image
-	var err error
-
-	if name != "" {
-		// 名前指定がある場合
-		img, err = s.imgStore.GetImageByName(name)
-	} else {
-		// 名前指定がない場合はランダム
-		img, err = s.imgStore.GetImage()
-	}
-
-	if err != nil {
-		return fmt.Errorf("画像の取得に失敗: %w", err)
-	}
-
-	_, _, err = s.client.PostMessage(
-		channelID,
-		slack.MsgOptionText(fmt.Sprintf("%s\n%s", img.Name, img.URL), false),
-	)
-	if err != nil {
-		return fmt.Errorf("メッセージの送信に失敗: %w", err)
-	}
-	return nil
-}
-
-func (s *MessageEventService) saveImage(channelID, name, url string) error {
-	if err := s.imgStore.SaveImage(name, url); err != nil {
-		return fmt.Errorf("画像の保存に失敗: %w", err)
-	}
-
-	_, _, err := s.client.PostMessage(
-		channelID,
-		slack.MsgOptionText("画像を保存しました :white_check_mark:", false),
-	)
-	if err != nil {
-		return fmt.Errorf("メッセージの送信に失敗: %w", err)
-	}
-	return nil
-}
-
-func (s *MessageEventService) sendInvalidCommandError(channelID string) error {
-	_, _, err := s.client.PostMessage(
-		channelID,
-		slack.MsgOptionText("不正なコマンド形式です。使用方法: updateImage NAME URL", false),
-	)
-	if err != nil {
-		return fmt.Errorf("エラーメッセージの送信に失敗: %w", err)
-	}
-	return nil
+	return nil, nil
 }

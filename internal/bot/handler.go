@@ -15,12 +15,14 @@ import (
 type Handler struct {
 	messageEventService *MessageEventService
 	signingKey          string
+	client              SlackClient
 }
 
 func NewHandler(client SlackClient, database *sql.DB, store ImageStore, signingKey string) *Handler {
 	return &Handler{
-		messageEventService: NewMessageEventService(client, store),
+		messageEventService: NewMessageEventService(store),
 		signingKey:          signingKey,
+		client:              client,
 	}
 }
 
@@ -80,7 +82,19 @@ func (h *Handler) handleEvent(w http.ResponseWriter, event *slackevents.EventsAP
 	if event.Type == slackevents.CallbackEvent {
 		switch ev := event.InnerEvent.Data.(type) {
 		case *slackevents.MessageEvent:
-			return h.messageEventService.HandleMessage(ev)
+			res, err := h.messageEventService.HandleMessage(ev)
+			if err != nil {
+				return fmt.Errorf("メッセージの処理に失敗: %w", err)
+			}
+			if res != nil {
+				_, _, err := h.client.PostMessage(
+					ev.Channel,
+					slack.MsgOptionText(res.Text, false),
+				)
+				if err != nil {
+					return fmt.Errorf("メッセージの送信に失敗: %w", err)
+				}
+			}
 		}
 	}
 
