@@ -21,6 +21,7 @@ type SlackClient interface {
 
 type ImageStore interface {
 	GetImage() (*image.Image, error)
+	GetImageByName(name string) (*image.Image, error)
 	SaveImage(url string) error
 }
 
@@ -114,8 +115,19 @@ func (h *Handler) handleMessage(event *slackevents.MessageEvent) error {
 			return fmt.Errorf("メッセージの送信に失敗: %w", err)
 		}
 
-	case event.Text == "image":
-		img, err := h.imgStore.GetImage()
+	case strings.HasPrefix(event.Text, "image"):
+		var img *image.Image
+		var err error
+
+		parts := strings.Fields(event.Text)
+		if len(parts) > 1 {
+			// 名前指定がある場合
+			img, err = h.imgStore.GetImageByName(parts[1])
+		} else {
+			// 名前指定がない場合はランダム
+			img, err = h.imgStore.GetImage()
+		}
+
 		if err != nil {
 			return fmt.Errorf("画像の取得に失敗: %w", err)
 		}

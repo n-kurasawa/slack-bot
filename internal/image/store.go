@@ -4,13 +4,15 @@ import (
 	"database/sql"
 	"fmt"
 	"math/rand"
+	"strings"
 
 	_ "github.com/mattn/go-sqlite3"
 )
 
 type Image struct {
-	ID  int
-	URL string
+	ID   int
+	URL  string
+	Name string
 }
 
 type SQLiteStore struct {
@@ -30,7 +32,8 @@ func (s *SQLiteStore) CreateTable() error {
 	_, err := s.DB.Exec(`
 		CREATE TABLE IF NOT EXISTS images (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			url TEXT NOT NULL
+			url TEXT NOT NULL,
+			name TEXT
 		)
 	`)
 	if err != nil {
@@ -40,7 +43,7 @@ func (s *SQLiteStore) CreateTable() error {
 }
 
 func (s *SQLiteStore) ListImages() ([]Image, error) {
-	rows, err := s.DB.Query("SELECT id, url FROM images")
+	rows, err := s.DB.Query("SELECT id, url, name FROM images")
 	if err != nil {
 		return nil, fmt.Errorf("画像の一覧取得に失敗: %w", err)
 	}
@@ -49,7 +52,7 @@ func (s *SQLiteStore) ListImages() ([]Image, error) {
 	var images []Image
 	for rows.Next() {
 		var img Image
-		if err := rows.Scan(&img.ID, &img.URL); err != nil {
+		if err := rows.Scan(&img.ID, &img.URL, &img.Name); err != nil {
 			return nil, fmt.Errorf("画像データの読み取りに失敗: %w", err)
 		}
 		images = append(images, img)
@@ -63,9 +66,19 @@ func (s *SQLiteStore) ListImages() ([]Image, error) {
 }
 
 func (s *SQLiteStore) SaveImage(url string) error {
-	_, err := s.DB.Exec("INSERT INTO images (url) VALUES (?)", url)
-	if err != nil {
-		return fmt.Errorf("画像の保存に失敗: %w", err)
+	parts := strings.Split(url, " ")
+	if len(parts) > 1 {
+		// 名前が指定されている場合
+		_, err := s.DB.Exec("INSERT INTO images (url, name) VALUES (?, ?)", parts[0], parts[1])
+		if err != nil {
+			return fmt.Errorf("画像の保存に失敗: %w", err)
+		}
+	} else {
+		// 名前が指定されていない場合
+		_, err := s.DB.Exec("INSERT INTO images (url) VALUES (?)", url)
+		if err != nil {
+			return fmt.Errorf("画像の保存に失敗: %w", err)
+		}
 	}
 	return nil
 }
@@ -86,7 +99,19 @@ func (s *SQLiteStore) GetImage() (*Image, error) {
 	offset := rand.Intn(count)
 
 	var img Image
-	err = s.DB.QueryRow("SELECT id, url FROM images LIMIT 1 OFFSET ?", offset).Scan(&img.ID, &img.URL)
+	err = s.DB.QueryRow("SELECT id, url, name FROM images LIMIT 1 OFFSET ?", offset).Scan(&img.ID, &img.URL, &img.Name)
+	if err != nil {
+		return nil, fmt.Errorf("画像の取得に失敗: %w", err)
+	}
+	return &img, nil
+}
+
+func (s *SQLiteStore) GetImageByName(name string) (*Image, error) {
+	var img Image
+	err := s.DB.QueryRow("SELECT id, url, name FROM images WHERE name = ?", name).Scan(&img.ID, &img.URL, &img.Name)
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("指定された名前の画像が見つかりません: %s", name)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("画像の取得に失敗: %w", err)
 	}
